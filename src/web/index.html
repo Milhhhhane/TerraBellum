@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#14171c" />
+    <title>TerraBellum</title>
+    <meta name="description" content="Conquiers la vraie carte de France, case par case." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,4 90,27 90,73 50,96 10,73 10,27' fill='%23d9a441'/></svg>" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+          <polygon points="50,4 90,27 90,73 50,96 10,73 10,27" />
+        </svg>
+        <span>TerraBellum</span>
+      </div>
+
+      <div class="stats" id="stats" hidden>
+        <div class="stat">
+          <span class="stat-label">Pièces</span>
+          <span class="stat-value" id="coins">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Production</span>
+          <span class="stat-value"><span id="rate">0</span>/min</span>
+        </div>
+        <button class="harvest" id="harvest" type="button">
+          <span class="harvest-label">Récolter <strong id="stock">0</strong></span>
+          <span class="harvest-bar"><span id="stock-fill"></span></span>
+        </button>
+      </div>
+
+      <button class="ghost" id="open-leaderboard" type="button">Classement</button>
+    </header>
+
+    <main id="map" aria-label="Carte du jeu"></main>
+
+    <div class="hint" id="hint" hidden></div>
+
+    <aside class="panel" id="panel" hidden>
+      <button class="close" id="close-panel" type="button" aria-label="Fermer">×</button>
+      <div id="panel-body"></div>
+    </aside>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <dialog id="signup">
+      <form id="signup-form" method="dialog">
+        <h1>TerraBellum</h1>
+        <p>Achète des cases sur la vraie carte, construis en hauteur, deviens le plus riche de l'Île-de-France.</p>
+        <label for="pseudo">Ton pseudo</label>
+        <input id="pseudo" name="pseudo" autocomplete="nickname" minlength="3" maxlength="20" pattern="[A-Za-z0-9_\-]{3,20}" required />
+        <p class="small">3 à 20 caractères : lettres, chiffres, _ ou -.</p>
+        <p class="error" id="signup-error" hidden></p>
+        <button type="submit" class="primary">Commencer</button>
+      </form>
+    </dialog>
+
+    <dialog id="leaderboard">
+      <div class="dialog-head">
+        <h2>Les plus riches</h2>
+        <button class="close" id="close-leaderboard" type="button" aria-label="Fermer">×</button>
+      </div>
+      <p class="small">Patrimoine = pièces + tout ce qui a été investi dans les cases.</p>
+      <ol id="leaderboard-list"></ol>
+    </dialog>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

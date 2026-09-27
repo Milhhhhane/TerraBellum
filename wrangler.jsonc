@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "terrabellum",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-09-01",
+
+  // `wrangler deploy` (et `wrangler dev`) lance d'abord ce build :
+  // il compile le client (Vite) dans ./dist.
+  "build": {
+    "command": "npm run build"
+  },
+
+  // Le Worker sert le client compilé. Les routes /api/* passent par le code du Worker.
+  "assets": {
+    "directory": "./dist",
+    "run_worker_first": ["/api/*"]
+  },
+
+  // Pas de database_id : au premier `wrangler deploy`, Wrangler crée la base
+  // tout seul (provisionnement automatique). Les tables sont créées par le Worker
+  // au premier appel (voir src/worker/db.ts), donc aucune migration à lancer.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "terrabellum"
+    }
+  ],
+
+  "observability": {
+    "enabled": true
+  }
+}
