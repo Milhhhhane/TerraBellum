@@ -73,8 +73,9 @@ La base locale vit dans `.wrangler/` (ignorée par Git). La supprimer remet le j
 Le dépôt est relié à **Cloudflare Workers Builds** : chaque push sur `main` lance `npx wrangler deploy`, qui :
 
 1. installe les dépendances et compile le client (`build.command` dans `wrangler.jsonc`) ;
-2. crée la base D1 `terrabellum` si elle n'existe pas (provisionnement automatique, pas de `database_id` à renseigner) ;
-3. publie le Worker.
+2. publie le Worker, relié à la base D1 `terrabellum-eu` (Europe de l'Ouest, identifiant fixé dans `wrangler.jsonc`).
+
+Jeu en ligne : https://terrabellum.cmilhane.workers.dev
 
 Les tables sont créées par le Worker au premier appel (`CREATE TABLE IF NOT EXISTS`), il n'y a donc pas de migration à lancer. Quand le schéma devra évoluer, on passera aux migrations D1.
 

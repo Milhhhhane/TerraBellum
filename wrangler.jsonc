@@ -16,13 +16,15 @@
     "run_worker_first": ["/api/*"]
   },
 
-  // Pas de database_id : au premier `wrangler deploy`, Wrangler crée la base
-  // tout seul (provisionnement automatique). Les tables sont créées par le Worker
-  // au premier appel (voir src/worker/db.ts), donc aucune migration à lancer.
+  // Base créée à la main en Europe de l'Ouest (weur), au plus près des joueurs.
+  // Ne pas retirer le database_id : sans lui, Wrangler recréerait une base là où
+  // tourne le build (la première avait atterri à Singapour, +160 ms par requête).
+  // Les tables sont créées par le Worker au premier appel (voir src/worker/db.ts).
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "terrabellum"
+      "database_name": "terrabellum-eu",
+      "database_id": "aab3ef23-6fbf-4b45-8ee4-526649b17120"
     }
   ],
 
