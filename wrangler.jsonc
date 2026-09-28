@@ -33,6 +33,11 @@
     "GOOGLE_CLIENT_ID": "791956589129-6npmc8h6n5qc2ifnm9o1h10vojodh49p.apps.googleusercontent.com"
   },
 
+  // Toutes les minutes : règle les attaques PvP arrivées à destination.
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+
   "observability": {
     "enabled": true
   }

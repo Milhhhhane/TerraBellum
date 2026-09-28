@@ -24,6 +24,8 @@ export interface CellView {
   h3: string;
   ownerName: string;
   mine: boolean;
+  /** "maison" ou "caserne" (les casernes n'existent que dans le monde PvP). */
+  kind: "maison" | "caserne";
   level: number;
   isHome: boolean;
 }
@@ -88,4 +90,59 @@ export interface AdminLogEntry {
   action: string;
   targetName: string | null;
   details: string | null;
+}
+
+// ---------- Monde PvP ----------
+
+export interface AttackView {
+  id: string;
+  h3: string;
+  soldiers: number;
+  arrivesAt: number;
+  attackerName: string;
+  defenderName: string;
+}
+
+export interface BattleReport {
+  id: string;
+  h3: string;
+  at: number;
+  /** Du point de vue du joueur qui lit le rapport. */
+  role: "attaque" | "défense";
+  opponentName: string;
+  /** victoire / défaite (du point de vue de l'attaquant), ou annulée (bouclier, case disparue). */
+  result: "victoire" | "défaite" | "annulée";
+  soldiers: number;
+  attackerLosses: number;
+  defenderLosses: number;
+  pillage: number;
+}
+
+export interface PvpState {
+  joined: boolean;
+  serverNow: number;
+  /** Durées effectives (accélérées en test local). */
+  recruitMs: number;
+  travelMs: number;
+  /** Pièces du monde calme transférables maintenant, et quand le prochain transfert sera possible. */
+  transferInMax: number;
+  transferInAvailableAt: number;
+  me?: {
+    coins: number;
+    stock: number;
+    stockAt: number;
+    rate: number;
+    soldiers: number;
+    soldiersAway: number;
+    queueCount: number;
+    queueStart: number;
+    armyCap: number;
+    rampart: number;
+    shieldUntil: number | null;
+    ownedCells: number;
+    frontierCells: number;
+  };
+  incoming: AttackView[];
+  outgoing: AttackView[];
+  reports: BattleReport[];
 }

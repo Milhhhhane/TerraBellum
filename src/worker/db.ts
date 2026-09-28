@@ -91,6 +91,56 @@ const MIGRATIONS: Migration[] = [
       `CREATE INDEX admin_log_by_date ON admin_log (at DESC)`,
     ],
   },
+  {
+    version: 4,
+    description: "Monde PvP : portefeuille PvP, armée, rempart, attaques",
+    statements: [
+      // Chaque joueur a une économie séparée dans le monde PvP.
+      `CREATE TABLE pvp_players (
+        player_id         TEXT PRIMARY KEY REFERENCES players(id),
+        coins             REAL NOT NULL DEFAULT 0,
+        stock             REAL NOT NULL DEFAULT 0,
+        stock_at          INTEGER NOT NULL,
+        rate              REAL NOT NULL DEFAULT 0,
+        soldiers          INTEGER NOT NULL,
+        soldiers_away     INTEGER NOT NULL DEFAULT 0,
+        queue_count       INTEGER NOT NULL DEFAULT 0,
+        queue_start       INTEGER NOT NULL DEFAULT 0,
+        rampart           INTEGER NOT NULL DEFAULT 0,
+        shield_until      INTEGER,
+        loss_window_start INTEGER,
+        loss_count        INTEGER NOT NULL DEFAULT 0,
+        loss_base         INTEGER NOT NULL DEFAULT 0,
+        last_transfer_in  INTEGER,
+        last_op           TEXT,
+        joined_at         INTEGER NOT NULL
+      )`,
+      // Type de bâtiment : maison (produit des pièces) ou caserne (loge des soldats).
+      `ALTER TABLE cells ADD COLUMN kind TEXT NOT NULL DEFAULT 'maison'`,
+      `CREATE TABLE attacks (
+        id              TEXT PRIMARY KEY,
+        world           TEXT NOT NULL,
+        h3              TEXT NOT NULL,
+        attacker_id     TEXT NOT NULL,
+        defender_id     TEXT NOT NULL,
+        soldiers        INTEGER NOT NULL,
+        launched_at     INTEGER NOT NULL,
+        arrives_at      INTEGER NOT NULL,
+        status          TEXT NOT NULL DEFAULT 'pending',
+        claim           TEXT,
+        result          TEXT,
+        attacker_losses INTEGER,
+        defender_losses INTEGER,
+        pillage         REAL,
+        resolved_at     INTEGER
+      )`,
+      `CREATE INDEX attacks_due ON attacks (status, arrives_at)`,
+      `CREATE INDEX attacks_by_attacker ON attacks (attacker_id, launched_at DESC)`,
+      `CREATE INDEX attacks_by_defender ON attacks (defender_id, launched_at DESC)`,
+      // Une seule attaque en cours par case.
+      `CREATE UNIQUE INDEX attacks_one_per_cell ON attacks (world, h3) WHERE status IN ('pending', 'resolving')`,
+    ],
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
@@ -162,4 +212,40 @@ export interface PlayerRow {
   google_sub: string | null;
   is_admin: number;
   banned_at: number | null;
+}
+
+/** Même chose que SETTLE_SQL, pour le portefeuille du monde PvP. ?1 = now, ?2 = id du joueur. */
+export const SETTLE_PVP_SQL = `
+  UPDATE pvp_players
+  SET stock = MIN(rate * ${STOCK_CAP_MINUTES}, stock + rate * (MAX(0, ?1 - stock_at) / 60000.0)),
+      stock_at = ?1
+  WHERE player_id = ?2`;
+
+/**
+ * Fait passer les recrues prêtes dans l'armée. ?1 = now, ?2 = id du joueur, ?3 = ms par soldat.
+ * Dans un UPDATE SQLite, toutes les expressions lisent les valeurs AVANT modification.
+ */
+export const SETTLE_RECRUITS_SQL = `
+  UPDATE pvp_players
+  SET soldiers    = soldiers + MIN(queue_count, CAST(MAX(0, ?1 - queue_start) / ?3 AS INTEGER)),
+      queue_start = queue_start + MIN(queue_count, CAST(MAX(0, ?1 - queue_start) / ?3 AS INTEGER)) * ?3,
+      queue_count = queue_count - MIN(queue_count, CAST(MAX(0, ?1 - queue_start) / ?3 AS INTEGER))
+  WHERE player_id = ?2`;
+
+export interface PvpRow {
+  player_id: string;
+  coins: number;
+  stock: number;
+  stock_at: number;
+  rate: number;
+  soldiers: number;
+  soldiers_away: number;
+  queue_count: number;
+  queue_start: number;
+  rampart: number;
+  shield_until: number | null;
+  loss_window_start: number | null;
+  loss_count: number;
+  loss_base: number;
+  last_transfer_in: number | null;
 }

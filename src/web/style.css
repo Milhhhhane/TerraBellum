@@ -735,3 +735,260 @@ tr.is-banned .pname {
     display: none;
   }
 }
+
+/* ---------- Monde PvP ---------- */
+.map-controls {
+  position: fixed;
+  top: 68px;
+  left: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 6;
+}
+
+.world-switch {
+  display: flex;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--ink);
+}
+
+.world-switch button {
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.world-switch button[aria-pressed="true"] {
+  background: var(--line);
+  color: var(--text);
+}
+
+body[data-world="pvp"] .world-switch button[aria-pressed="true"] {
+  background: var(--red);
+}
+
+.army-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--text);
+}
+
+.army-btn strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.alert-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  background: #e0352b;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    transform: scale(1.3);
+  }
+}
+
+body[data-world="pvp"] .topbar {
+  border-bottom-color: rgba(194, 70, 61, 0.6);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.row > * {
+  flex: 1;
+  min-width: 0;
+}
+
+.row input {
+  margin-top: 0;
+}
+
+.row .ghost,
+.row .primary {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.panel .row .primary {
+  flex: 1;
+}
+
+dialog .row {
+  margin-top: 8px;
+}
+
+dialog .row .primary {
+  margin-top: 0;
+}
+
+.primary.alt {
+  background: #7a5ce0;
+  color: #fff;
+}
+
+.primary.danger-fill {
+  background: var(--red);
+  color: #fff;
+}
+
+.panel .field {
+  display: block;
+  margin: 12px 0 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panel input {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--text);
+  font: inherit;
+}
+
+.alert {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(224, 53, 43, 0.15);
+  border: 1px solid rgba(224, 53, 43, 0.5);
+  font-size: 14px;
+}
+
+.alert.out {
+  background: rgba(240, 138, 36, 0.12);
+  border-color: rgba(240, 138, 36, 0.5);
+}
+
+.alert.shield {
+  background: rgba(47, 111, 219, 0.14);
+  border-color: rgba(47, 111, 219, 0.5);
+}
+
+#army {
+  width: min(460px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+}
+
+#army h3 {
+  margin: 20px 0 4px;
+  font-size: 15px;
+}
+
+.army-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.army-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.army-grid strong {
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+.army-grid .small {
+  margin: 0;
+  font-size: 11px;
+}
+
+.attack-list,
+.report-list,
+.rules {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rules {
+  padding-left: 18px;
+  list-style: disc;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.rules li {
+  margin: 6px 0;
+}
+
+.attack-list li,
+.report-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-left: 3px solid var(--line);
+  border-radius: 6px;
+  background: var(--ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.attack-list li span:last-child,
+.report-list li span:last-child {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.attack-list li.in,
+.report-list li.bad {
+  border-left-color: #e0352b;
+}
+
+.attack-list li.out {
+  border-left-color: #f08a24;
+}
+
+.report-list li.good {
+  border-left-color: #3fae6a;
+}
+
+@media (max-width: 640px) {
+  .map-controls {
+    top: 64px;
+    left: 8px;
+  }
+
+  .hint {
+    top: 110px;
+  }
+
+  .army-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

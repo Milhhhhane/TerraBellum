@@ -8,7 +8,11 @@ import type {
   ConfigResponse,
   LeaderboardEntry,
   MeResponse,
+  PvpState,
 } from "../shared/api";
+import type { CellKind } from "../shared/pvp";
+
+export type World = "calme" | "pvp";
 
 const TOKEN_KEY = "terrabellum.token";
 
@@ -74,11 +78,27 @@ export const api = {
   },
   me: () => call<MeResponse>("GET", "/me"),
   harvest: () => call<{ harvested: number; me: MeResponse }>("POST", "/harvest"),
-  cells: (b: { west: number; south: number; east: number; north: number }) =>
-    call<CellsResponse>("GET", `/cells?west=${b.west}&south=${b.south}&east=${b.east}&north=${b.north}`),
+  cells: (b: { west: number; south: number; east: number; north: number }, world: World) =>
+    call<CellsResponse>(
+      "GET",
+      `/cells?world=${world}&west=${b.west}&south=${b.south}&east=${b.east}&north=${b.north}`,
+    ),
   buy: (h3: string) => call<MeResponse>("POST", `/cells/${h3}/buy`),
   upgrade: (h3: string) => call<MeResponse>("POST", `/cells/${h3}/upgrade`),
-  leaderboard: () => call<LeaderboardEntry[]>("GET", "/leaderboard"),
+  leaderboard: (world: World) => call<LeaderboardEntry[]>("GET", `/leaderboard?world=${world}`),
+};
+
+export const pvpApi = {
+  state: () => call<PvpState>("GET", "/pvp/state"),
+  join: () => call<{ ok: true }>("POST", "/pvp/join"),
+  transfer: (amount: number, direction: "in" | "out") =>
+    call<{ ok: true; received?: number }>("POST", "/pvp/transfer", { amount, direction }),
+  harvest: () => call<{ harvested: number }>("POST", "/pvp/harvest"),
+  buy: (h3: string, kind: CellKind) => call<{ ok: true }>("POST", `/pvp/cells/${h3}/buy`, { kind }),
+  upgrade: (h3: string) => call<{ ok: true }>("POST", `/pvp/cells/${h3}/upgrade`),
+  recruit: (count: number) => call<{ ok: true }>("POST", "/pvp/recruit", { count }),
+  rampart: () => call<{ ok: true }>("POST", "/pvp/rampart"),
+  attack: (h3: string, soldiers: number) => call<{ ok: true; arrivesAt: number }>("POST", "/pvp/attack", { h3, soldiers }),
 };
 
 export const adminApi = {

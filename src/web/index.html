@@ -19,7 +19,7 @@
 
       <div class="stats" id="stats" hidden>
         <div class="stat">
-          <span class="stat-label">Pièces</span>
+          <span class="stat-label" id="coins-label">Pièces</span>
           <span class="stat-value" id="coins">0</span>
         </div>
         <div class="stat">
@@ -42,6 +42,17 @@
     </header>
 
     <main id="map" aria-label="Carte du jeu"></main>
+
+    <div class="map-controls" id="map-controls" hidden>
+      <div class="world-switch" role="group" aria-label="Monde">
+        <button type="button" data-world="calme" aria-pressed="true">Calme</button>
+        <button type="button" data-world="pvp" aria-pressed="false">⚔ PvP</button>
+      </div>
+      <button type="button" class="army-btn" id="open-army" hidden>
+        <span aria-hidden="true">🛡</span> Armée <strong id="army-count">0</strong>
+        <span class="alert-dot" id="army-alert" hidden title="Attaque en approche"></span>
+      </button>
+    </div>
 
     <div class="hint" id="hint" hidden></div>
 
@@ -93,11 +104,38 @@
 
     <dialog id="leaderboard">
       <div class="dialog-head">
-        <h2>Les plus riches</h2>
+        <h2 id="leaderboard-title">Les plus riches</h2>
         <button class="close" id="close-leaderboard" type="button" aria-label="Fermer">×</button>
       </div>
       <p class="small">Patrimoine = pièces + tout ce qui a été investi dans les cases.</p>
       <ol id="leaderboard-list"></ol>
+    </dialog>
+
+    <dialog id="pvp-join">
+      <div class="dialog-head">
+        <h2>⚔ Monde PvP</h2>
+        <button class="close" id="close-pvp-join" type="button" aria-label="Fermer">×</button>
+      </div>
+      <p>Une carte à part, où on peut te prendre tes cases. Elle rapporte <strong>2× plus</strong> que le monde calme.</p>
+      <ul class="rules">
+        <li><strong>Ta première case</strong> est ta case maison : personne ne peut l'attaquer.</li>
+        <li><strong>Maison</strong> = produit des pièces. <strong>Caserne</strong> = loge des soldats et renforce la défense autour.</li>
+        <li>Ton armée défend toutes tes <strong>cases de bordure</strong> (tes murs). Plus ton territoire est étalé, plus elle est diluée.</li>
+        <li>Le <strong>rempart</strong> renforce tous tes murs d'un coup.</li>
+        <li>Une attaque met <strong>1 h</strong> à arriver : le défenseur la voit venir.</li>
+        <li>Le gagnant prend la case (un étage de moins) et <strong>pille 30 %</strong> du stock non récolté. Récolte souvent !</li>
+        <li>Si tu perds beaucoup de cases d'un coup, tu reçois un <strong>bouclier de 24 h</strong>.</li>
+      </ul>
+      <p class="small">Tu arrives avec 300 pièces et 20 soldats. Tes pièces du monde calme restent à l'abri : tu peux en envoyer 20 % par jour.</p>
+      <button type="button" class="primary" id="pvp-join-btn">Entrer dans le monde PvP</button>
+    </dialog>
+
+    <dialog id="army">
+      <div class="dialog-head">
+        <h2>🛡 Armée</h2>
+        <button class="close" id="close-army" type="button" aria-label="Fermer">×</button>
+      </div>
+      <div id="army-body"></div>
     </dialog>
 
     <script type="module" src="./main.ts"></script>

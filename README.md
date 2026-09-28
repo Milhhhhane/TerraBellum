@@ -3,8 +3,8 @@
 Jeu de conquête sur la **vraie carte de France**, découpée en hexagones.
 On achète des cases, on construit en hauteur, on récolte ses pièces, on grimpe au classement.
 
-> **V1 (en cours)** : Île-de-France uniquement, monde tranquille (pas d'attaques), connexion Google ou compte invité.
-> PvP, alliances, bâtiments de défense et monétisation viendront ensuite.
+> **V1 (en cours)** : Île-de-France uniquement, un monde calme et un monde PvP séparé, connexion Google ou compte invité.
+> Alliances et monétisation viendront ensuite.
 
 ## Ce que fait la V1
 
@@ -18,6 +18,23 @@ On achète des cases, on construit en hauteur, on récolte ses pièces, on grimp
 - **Comptes** : connexion avec Google (compte retrouvable sur tous les appareils) ou compte invité (lié au navigateur). Un invité peut lier Google plus tard sans rien perdre.
 
 Toutes les règles chiffrées sont dans [`src/shared/economy.ts`](src/shared/economy.ts).
+
+## Le monde PvP
+
+Une carte à part (même grille, cases séparées), qui rapporte 2× plus mais où l'on peut se faire prendre ses cases. On passe d'un monde à l'autre avec le sélecteur en haut à gauche de la carte.
+
+- **Entrée** : 300 pièces PvP et 20 soldats. Les pièces du monde calme restent à l'abri : on peut en envoyer au plus 20 % par jour vers le PvP ; rapatrier du PvP vers le calme coûte 25 %.
+- **Case maison** (la première) : intouchable.
+- **Maison** produit des pièces ; **caserne** ne produit rien mais loge des soldats (50 / 120 / 250 / 500 selon l'étage) et donne +25 % de défense à elle-même et à ses voisines.
+- **Armée globale** : recruter coûte 10 pièces et 30 s par soldat, dans la limite de la capacité (20 de base + casernes).
+- **Murs** : seules les cases de bordure peuvent être attaquées. L'armée présente se répartit entre elles ; chaque case a en plus sa milice (5 + 5 par étage). Le **rempart** (5 niveaux, +25 % chacun) renforce toutes les bordures.
+- **Attaque** : sur une case ennemie voisine, les soldats partent et arrivent au bout d'**1 h** ; le défenseur la voit venir (alerte, compte à rebours, case marquée en rouge sur la carte).
+- **Bataille** : attaque > défense → la case change de main avec un étage de moins, l'attaquant pille 30 % du stock non récolté du défenseur, qui récupère 25 % de ce qu'il avait investi. Sinon l'attaquant perd tous les soldats envoyés.
+- **Bouclier de 24 h** si on perd au moins 20 % de ses cases (et au moins 2) en 24 h. Attaquer retire son propre bouclier.
+
+Règles chiffrées : [`src/shared/pvp.ts`](src/shared/pvp.ts). Les batailles sont réglées par une tâche planifiée (toutes les minutes, `triggers.crons`) **et** à chaque appel `/api/pvp/*`, avec une réservation (`claim`) pour qu'une attaque ne soit jamais réglée deux fois.
+
+Pour tester en local sans attendre, accélérer les durées dans `.dev.vars` (`PVP_TIME_SCALE=0.02` → trajet de 72 s, recrue en 0,6 s) et lancer `npx wrangler dev --test-scheduled` (la tâche planifiée se déclenche via `/cdn-cgi/handler/scheduled`).
 
 ## Architecture
 
@@ -36,14 +53,14 @@ Navigateur                          Cloudflare
 - **Pas de triche sur les achats** : chaque achat/amélioration est un batch D1 (une transaction). La clé primaire `(world, h3)` empêche deux joueurs d'avoir la même case, et le débit n'a lieu que si l'écriture de *cette* requête a réussi.
 - **Connexion Google sans secret** : le bouton Google Identity Services renvoie un ID token (JWT). Le Worker vérifie sa signature avec les clés publiques de Google, son émetteur, son destinataire (notre client ID) et son expiration (`src/worker/google.ts`). On ne stocke que l'identifiant Google (`sub`), pas l'e-mail.
 - **Sessions** : une session par appareil, on ne stocke que l'empreinte SHA-256 du jeton. Se déconnecter supprime la session de l'appareil.
-- **Prévu pour la suite** : colonne `world` (monde tranquille / PvP) et `alliance_id` déjà dans le schéma.
+- **Mondes** : la colonne `world` des cases sépare le monde calme (`calme`) et le PvP (`pvp`). Le portefeuille PvP est dans `pvp_players`. `alliance_id` est déjà dans le schéma pour la suite.
 
 ```
 src/
   shared/   règles du jeu et types d'API (utilisés des deux côtés)
   worker/   API Cloudflare Worker + schéma D1
   web/      client (Vite + TypeScript, sans framework)
-test/       tests unitaires de l'économie (Vitest)
+test/       tests unitaires de l'économie et du PvP (Vitest)
 ```
 
 ## Lancer en local

@@ -177,6 +177,8 @@ adminRoutes.delete("/players/:id", async (c) => {
   const cells = (await db.prepare("SELECT COUNT(*) AS n FROM cells WHERE owner_id = ?").bind(t.id).first<number>("n")) ?? 0;
   await db.batch([
     db.prepare("DELETE FROM sessions WHERE player_id = ?").bind(t.id),
+    db.prepare("DELETE FROM attacks WHERE attacker_id = ?1 OR defender_id = ?1").bind(t.id),
+    db.prepare("DELETE FROM pvp_players WHERE player_id = ?").bind(t.id),
     db.prepare("DELETE FROM cells WHERE owner_id = ?").bind(t.id),
     db.prepare("DELETE FROM players WHERE id = ?").bind(t.id),
     logStatement(db, c.get("admin"), "supprimer", t, `${cells} case(s) libérée(s)`),

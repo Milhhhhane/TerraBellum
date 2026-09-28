@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { cellToLatLng, getResolution, gridDisk, isValidCell } from "h3-js";
+import { cellToLatLng, gridDisk } from "h3-js";
 import {
   DEFAULT_WORLD,
   H3_RES,
@@ -15,8 +15,10 @@ import type { AuthResponse, CellView, CellsResponse, ConfigResponse, Leaderboard
 import { bearerToken, hashToken, newToken } from "./auth";
 import { SETTLE_SQL, ensureSchema, type PlayerRow } from "./db";
 import { verifyGoogleCredential } from "./google";
-import { HttpError, checkName, findPlayer, isUniqueViolation, type Ctx, type Env } from "./common";
+import { HttpError, checkName, findPlayer, isUniqueViolation, parseCell, requirePlayer, type Env } from "./common";
 import { adminRoutes } from "./admin";
+import { pvpRoutes, resolveDueAttacks } from "./pvp";
+import { PVP_WORLD } from "../shared/pvp";
 
 const app = new Hono<Env>().basePath("/api");
 const WORLD = DEFAULT_WORLD;
@@ -71,13 +73,6 @@ async function createPlayer(db: D1Database, name: string, googleSub: string | nu
   return { token, me: await meFor(db, id) };
 }
 
-/** Joueur connecté ET autorisé à jouer (pas suspendu). */
-async function requirePlayer(c: Ctx): Promise<PlayerRow> {
-  const player = await findPlayer(c);
-  if (!player) throw new HttpError(401, "Session inconnue : crée un joueur d'abord");
-  if (player.banned_at !== null) throw new HttpError(403, "Ton compte est suspendu");
-  return player;
-}
 
 async function meFor(db: D1Database, playerId: string): Promise<MeResponse> {
   const row = await db
@@ -105,11 +100,6 @@ async function meFor(db: D1Database, playerId: string): Promise<MeResponse> {
   };
 }
 
-function parseCell(raw: string): string {
-  if (!isValidCell(raw) || getResolution(raw) !== H3_RES) throw new HttpError(400, "Case invalide");
-  if (!isInOpenZone(raw)) throw new HttpError(403, "Cette zone n'est pas encore ouverte");
-  return raw;
-}
 
 app.get("/health", (c) => c.json({ ok: true }));
 
@@ -201,20 +191,22 @@ app.get("/cells", async (c) => {
   if (![west, south, east, north].every(Number.isFinite) || west >= east || south >= north) {
     throw new HttpError(400, "Rectangle invalide");
   }
+  const world = c.req.query("world") === PVP_WORLD ? PVP_WORLD : WORLD;
   const player = await findPlayer(c);
   const { results } = await c.env.DB.prepare(
-    `SELECT c.h3, c.owner_id, c.level, c.is_home, p.name AS owner_name
+    `SELECT c.h3, c.owner_id, c.level, c.is_home, c.kind, p.name AS owner_name
      FROM cells c JOIN players p ON p.id = c.owner_id
      WHERE c.world = ? AND c.lat BETWEEN ? AND ? AND c.lng BETWEEN ? AND ?
      LIMIT ?`,
   )
-    .bind(WORLD, south, north, west, east, MAX_CELLS_PER_QUERY + 1)
-    .all<{ h3: string; owner_id: string; level: number; is_home: number; owner_name: string }>();
+    .bind(world, south, north, west, east, MAX_CELLS_PER_QUERY + 1)
+    .all<{ h3: string; owner_id: string; level: number; is_home: number; kind: CellView["kind"]; owner_name: string }>();
 
   const cells: CellView[] = results.slice(0, MAX_CELLS_PER_QUERY).map((r) => ({
     h3: r.h3,
     ownerName: r.owner_name,
     mine: r.owner_id === player?.id,
+    kind: r.kind,
     level: r.level,
     isHome: r.is_home === 1,
   }));
@@ -324,6 +316,23 @@ app.post("/cells/:h3/upgrade", async (c) => {
 });
 
 app.get("/leaderboard", async (c) => {
+  if (c.req.query("world") === PVP_WORLD) {
+    // Monde PvP : patrimoine = pièces PvP + investi dans les cases PvP.
+    const { results } = await c.env.DB.prepare(
+      `SELECT p.name,
+              v.coins + COALESCE(SUM(c.invested), 0) AS worth,
+              COUNT(c.h3) AS cells
+       FROM pvp_players v JOIN players p ON p.id = v.player_id
+       LEFT JOIN cells c ON c.owner_id = p.id AND c.world = ?
+       WHERE p.banned_at IS NULL
+       GROUP BY p.id
+       ORDER BY worth DESC
+       LIMIT 20`,
+    )
+      .bind(PVP_WORLD)
+      .all<LeaderboardEntry>();
+    return c.json(results);
+  }
   const { results } = await c.env.DB.prepare(
     `SELECT p.name,
             p.coins + COALESCE(SUM(c.invested), 0) AS worth,
@@ -340,7 +349,14 @@ app.get("/leaderboard", async (c) => {
 });
 
 app.route("/admin", adminRoutes);
+app.route("/pvp", pvpRoutes);
 
 app.notFound((c) => c.json({ error: "Route inconnue" }, 404));
 
-export default app;
+export default {
+  fetch: app.fetch,
+  // Tâche planifiée (toutes les minutes, voir wrangler.jsonc) : règle les attaques arrivées.
+  async scheduled(_event: ScheduledController, env: Env["Bindings"], ctx: ExecutionContext) {
+    ctx.waitUntil(ensureSchema(env.DB).then(() => resolveDueAttacks(env.DB, env)));
+  },
+} satisfies ExportedHandler<Env["Bindings"]>;
