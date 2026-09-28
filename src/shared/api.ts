@@ -10,6 +10,8 @@ export interface MeResponse {
   /** Production totale, en pièces/minute. */
   rate: number;
   ownedCells: number;
+  /** Le compte est-il lié à Google (récupérable sur n'importe quel appareil) ? */
+  hasGoogle: boolean;
   /** Heure du serveur, pour corriger le décalage d'horloge du client. */
   serverNow: number;
 }
@@ -37,3 +39,15 @@ export interface LeaderboardEntry {
 export interface ApiError {
   error: string;
 }
+
+export interface ConfigResponse {
+  /** Client ID OAuth Google, ou null si la connexion Google n'est pas configurée. */
+  googleClientId: string | null;
+}
+
+/**
+ * Réponse des routes de connexion.
+ * - token : nouveau jeton de session à garder côté client (null = garder le jeton actuel)
+ * - needsName : nouveau joueur Google, il doit choisir un pseudo
+ */
+export type AuthResponse = { token: string | null; me: MeResponse } | { needsName: true };

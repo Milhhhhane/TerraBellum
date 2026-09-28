@@ -11,11 +11,22 @@ import {
   locationMultiplier,
   upgradeCost,
 } from "../shared/economy";
-import type { CellView, CellsResponse, LeaderboardEntry, MeResponse } from "../shared/api";
+import type { AuthResponse, CellView, CellsResponse, ConfigResponse, LeaderboardEntry, MeResponse } from "../shared/api";
 import { NAME_PATTERN, bearerToken, hashToken, newToken } from "./auth";
 import { SETTLE_SQL, ensureSchema, type PlayerRow } from "./db";
+import { verifyGoogleCredential } from "./google";
 
-type Env = { Bindings: { DB: D1Database; ASSETS: Fetcher }; Variables: { player: PlayerRow } };
+type Env = {
+  Bindings: {
+    DB: D1Database;
+    ASSETS: Fetcher;
+    /** Client ID OAuth Google (public). Vide = connexion Google désactivée. */
+    GOOGLE_CLIENT_ID?: string;
+    /** Tests locaux uniquement : adresse de fausses clés publiques "Google". */
+    GOOGLE_JWKS_URL?: string;
+  };
+  Variables: { player: PlayerRow };
+};
 type Ctx = Context<Env>;
 
 const app = new Hono<Env>().basePath("/api");
@@ -48,10 +59,57 @@ async function findPlayer(c: Ctx): Promise<PlayerRow | null> {
   if (!token) return null;
   const hash = await hashToken(token);
   return c.env.DB.prepare(
-    "SELECT id, name, coins, stock, stock_at, rate FROM players WHERE token_hash = ?",
+    `SELECT p.id, p.name, p.coins, p.stock, p.stock_at, p.rate, p.google_sub
+     FROM sessions s JOIN players p ON p.id = s.player_id
+     WHERE s.token_hash = ?`,
   )
     .bind(hash)
     .first<PlayerRow>();
+}
+
+/** Ouvre une session (un appareil) pour ce joueur et renvoie le jeton secret. */
+async function openSession(db: D1Database, playerId: string): Promise<string> {
+  const token = newToken();
+  await db
+    .prepare("INSERT INTO sessions (token_hash, player_id, created_at) VALUES (?, ?, ?)")
+    .bind(await hashToken(token), playerId, Date.now())
+    .run();
+  return token;
+}
+
+function checkName(raw: unknown): string {
+  const name = typeof raw === "string" ? raw.trim() : "";
+  if (!NAME_PATTERN.test(name)) {
+    throw new HttpError(400, "Pseudo invalide : 3 à 20 caractères, lettres, chiffres, _ ou -");
+  }
+  return name;
+}
+
+/** Crée un joueur (invité si googleSub est null) et sa première session. */
+async function createPlayer(db: D1Database, name: string, googleSub: string | null): Promise<AuthResponse> {
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  const token = newToken();
+  const tokenHash = await hashToken(token);
+  try {
+    await db.batch([
+      // players.token_hash est une ancienne colonne (V1) : on y met l'empreinte de la 1re session.
+      db
+        .prepare(
+          `INSERT INTO players (id, name, token_hash, coins, stock, stock_at, rate, created_at, last_seen, google_sub)
+           VALUES (?, ?, ?, ?, 0, ?, 0, ?, ?, ?)`,
+        )
+        .bind(id, name, tokenHash, START_COINS, now, now, now, googleSub),
+      db
+        .prepare("INSERT INTO sessions (token_hash, player_id, created_at) VALUES (?, ?, ?)")
+        .bind(tokenHash, id, now),
+    ]);
+  } catch (err) {
+    if (isUniqueViolation(err) && /name/i.test(String(err))) throw new HttpError(409, "Ce pseudo est déjà pris");
+    if (isUniqueViolation(err)) throw new HttpError(409, "Ce compte Google a déjà un joueur");
+    throw err;
+  }
+  return { token, me: await meFor(db, id) };
 }
 
 async function requirePlayer(c: Ctx): Promise<PlayerRow> {
@@ -63,7 +121,7 @@ async function requirePlayer(c: Ctx): Promise<PlayerRow> {
 async function meFor(db: D1Database, playerId: string): Promise<MeResponse> {
   const row = await db
     .prepare(
-      `SELECT p.id, p.name, p.coins, p.stock, p.stock_at, p.rate,
+      `SELECT p.id, p.name, p.coins, p.stock, p.stock_at, p.rate, p.google_sub,
               (SELECT COUNT(*) FROM cells c WHERE c.world = ?2 AND c.owner_id = p.id) AS owned
        FROM players p WHERE p.id = ?1`,
     )
@@ -78,6 +136,7 @@ async function meFor(db: D1Database, playerId: string): Promise<MeResponse> {
     stockAt: row.stock_at,
     rate: row.rate,
     ownedCells: row.owned,
+    hasGoogle: row.google_sub !== null,
     serverNow: Date.now(),
   };
 }
@@ -94,28 +153,61 @@ function isUniqueViolation(err: unknown): boolean {
 
 app.get("/health", (c) => c.json({ ok: true }));
 
+app.get("/config", (c) => c.json<ConfigResponse>({ googleClientId: c.env.GOOGLE_CLIENT_ID || null }));
+
 // Créer un joueur invité. Renvoie le jeton secret, à garder côté client.
 app.post("/players", async (c) => {
   const body = await c.req.json<{ name?: unknown }>().catch(() => ({}) as { name?: unknown });
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  if (!NAME_PATTERN.test(name)) {
-    throw new HttpError(400, "Pseudo invalide : 3 à 20 caractères, lettres, chiffres, _ ou -");
-  }
-  const token = newToken();
-  const id = crypto.randomUUID();
-  const now = Date.now();
+  return c.json(await createPlayer(c.env.DB, checkName(body.name), null), 201);
+});
+
+/**
+ * Connexion avec Google. Trois cas :
+ * 1. Ce compte Google a déjà un joueur → nouvelle session sur cet appareil.
+ * 2. Un invité connecté clique "Lier Google" → on attache Google à SON joueur (il garde tout).
+ * 3. Nouveau joueur → il faut un pseudo : on répond needsName, le client renvoie avec `name`.
+ */
+app.post("/auth/google", async (c) => {
+  const clientId = c.env.GOOGLE_CLIENT_ID;
+  if (!clientId) throw new HttpError(404, "Connexion Google non configurée");
+  const body = await c.req
+    .json<{ credential?: unknown; name?: unknown }>()
+    .catch(() => ({}) as { credential?: unknown; name?: unknown });
+  if (typeof body.credential !== "string") throw new HttpError(400, "Jeton Google manquant");
+
+  let sub: string;
   try {
-    await c.env.DB.prepare(
-      `INSERT INTO players (id, name, token_hash, coins, stock, stock_at, rate, created_at, last_seen)
-       VALUES (?, ?, ?, ?, 0, ?, 0, ?, ?)`,
-    )
-      .bind(id, name, await hashToken(token), START_COINS, now, now, now)
-      .run();
+    ({ sub } = await verifyGoogleCredential(body.credential, clientId, c.env.GOOGLE_JWKS_URL || undefined));
   } catch (err) {
-    if (isUniqueViolation(err)) throw new HttpError(409, "Ce pseudo est déjà pris");
-    throw err;
+    console.warn("Jeton Google refusé", err);
+    throw new HttpError(401, "Connexion Google refusée, réessaie");
   }
-  return c.json({ token, me: await meFor(c.env.DB, id) }, 201);
+  const db = c.env.DB;
+
+  const existing = await db.prepare("SELECT id FROM players WHERE google_sub = ?").bind(sub).first<string>("id");
+  if (existing) {
+    return c.json<AuthResponse>({ token: await openSession(db, existing), me: await meFor(db, existing) });
+  }
+
+  const current = await findPlayer(c);
+  if (current && current.google_sub === null) {
+    await db
+      .prepare("UPDATE players SET google_sub = ? WHERE id = ? AND google_sub IS NULL")
+      .bind(sub, current.id)
+      .run();
+    // Le client garde son jeton actuel.
+    return c.json<AuthResponse>({ token: null, me: await meFor(db, current.id) });
+  }
+
+  if (body.name === undefined) return c.json<AuthResponse>({ needsName: true });
+  return c.json(await createPlayer(db, checkName(body.name), sub), 201);
+});
+
+// Se déconnecter de cet appareil.
+app.post("/logout", async (c) => {
+  const token = bearerToken(c.req.header("Authorization"));
+  if (token) await c.env.DB.prepare("DELETE FROM sessions WHERE token_hash = ?").bind(await hashToken(token)).run();
+  return c.json({ ok: true });
 });
 
 app.get("/me", async (c) => {

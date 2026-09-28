@@ -32,7 +32,13 @@
         </button>
       </div>
 
-      <button class="ghost" id="open-leaderboard" type="button">Classement</button>
+      <button class="ghost icon-btn" id="open-leaderboard" type="button" aria-label="Classement">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 21V13h5v8H3Zm6.5 0V5h5v16h-5ZM16 21v-11h5v11h-5Z" /></svg>
+        <span class="btn-label">Classement</span>
+      </button>
+      <button class="ghost account-btn" id="open-account" type="button" hidden>
+        <span id="account-name"></span><span class="dot" id="account-warn" hidden title="Compte invité"></span>
+      </button>
     </header>
 
     <main id="map" aria-label="Carte du jeu"></main>
@@ -47,15 +53,41 @@
     <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
     <dialog id="signup">
-      <form id="signup-form" method="dialog">
-        <h1>TerraBellum</h1>
-        <p>Achète des cases sur la vraie carte, construis en hauteur, deviens le plus riche de l'Île-de-France.</p>
+      <h1>TerraBellum</h1>
+      <p id="signup-intro">Achète des cases sur la vraie carte, construis en hauteur, deviens le plus riche de l'Île-de-France.</p>
+
+      <div id="google-block" hidden>
+        <div class="google-slot" id="google-signin"></div>
+        <p class="small center">Ton compte te suivra sur tous tes appareils.</p>
+        <div class="divider"><span>ou</span></div>
+      </div>
+
+      <form id="signup-form">
         <label for="pseudo">Ton pseudo</label>
         <input id="pseudo" name="pseudo" autocomplete="nickname" minlength="3" maxlength="20" pattern="[A-Za-z0-9_\-]{3,20}" required />
         <p class="small">3 à 20 caractères : lettres, chiffres, _ ou -.</p>
         <p class="error" id="signup-error" hidden></p>
-        <button type="submit" class="primary">Commencer</button>
+        <button type="submit" class="primary" id="signup-submit">Jouer en invité</button>
+        <p class="small warn" id="guest-warning">Un compte invité est perdu si tu changes de navigateur ou d'appareil.</p>
       </form>
+    </dialog>
+
+    <dialog id="account">
+      <div class="dialog-head">
+        <h2 id="account-title">Compte</h2>
+        <button class="close" id="close-account" type="button" aria-label="Fermer">×</button>
+      </div>
+      <div id="account-guest" hidden>
+        <p>Tu joues avec un <strong>compte invité</strong> : il n'existe que dans ce navigateur.</p>
+        <p class="small">Lie-le à Google pour le garder et le retrouver sur tous tes appareils. Tu conserves tout ce que tu as.</p>
+        <div class="google-slot" id="google-link"></div>
+        <p class="small" id="google-unavailable" hidden>La connexion Google n'est pas encore disponible.</p>
+      </div>
+      <div id="account-google" hidden>
+        <p>Compte lié à Google ✓</p>
+        <p class="small">Connecte-toi avec le même compte Google sur un autre appareil pour retrouver ta partie.</p>
+        <button type="button" class="ghost wide" id="logout">Se déconnecter de cet appareil</button>
+      </div>
     </dialog>
 
     <dialog id="leaderboard">

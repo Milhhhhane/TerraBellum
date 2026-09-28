@@ -28,6 +28,11 @@
     }
   ],
 
+  // Client ID OAuth Google (public, pas un secret). Vide = connexion Google masquée.
+  "vars": {
+    "GOOGLE_CLIENT_ID": ""
+  },
+
   "observability": {
     "enabled": true
   }

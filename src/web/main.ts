@@ -13,7 +13,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { cellToBoundary, gridDisk, latLngToCell, polygonToCells } from "h3-js";
 import "./style.css";
 import { api, ApiRequestError, getToken } from "./api";
-import type { CellView, MeResponse } from "../shared/api";
+import { forgetGoogleChoice, initGoogle, renderGoogleButton } from "./google";
+import type { AuthResponse, CellView, MeResponse } from "../shared/api";
 import {
   H3_RES,
   MAX_LEVEL,
@@ -272,11 +273,17 @@ async function act(request: () => Promise<MeResponse>, success: string) {
 
 // ---------- Barre du haut ----------
 function setMe(next: MeResponse) {
+  const switchedPlayer = me?.id !== next.id;
   me = next;
   clockOffset = next.serverNow - Date.now();
   $("stats").hidden = false;
+  $("open-account").hidden = false;
+  $("account-name").textContent = next.name;
+  $("account-warn").hidden = next.hasGoogle;
   tick();
   updateHint();
+  // Changement de joueur : "mes cases" ne sont plus les mêmes.
+  if (switchedPlayer) void loadOwnedCells();
 }
 
 function tick() {
@@ -325,22 +332,105 @@ $("open-leaderboard").addEventListener("click", async () => {
 });
 $("close-leaderboard").addEventListener("click", () => $<HTMLDialogElement>("leaderboard").close());
 
-// ---------- Inscription ----------
+// ---------- Inscription et connexion ----------
+const signup = $<HTMLDialogElement>("signup");
+/** Jeton Google en attente quand un nouveau joueur Google doit choisir son pseudo. */
+let pendingCredential: string | null = null;
+let googleEnabled = false;
+
+function showSignupError(err: unknown) {
+  const error = $("signup-error");
+  error.textContent = err instanceof ApiRequestError ? err.message : "Connexion impossible, réessaie.";
+  error.hidden = false;
+}
+
+/** Applique une réponse de connexion ; renvoie false s'il faut encore choisir un pseudo. */
+function applyAuth(res: AuthResponse): boolean {
+  if ("needsName" in res) return false;
+  setMe(res.me);
+  return true;
+}
+
+function askNameForGoogle(credential: string) {
+  pendingCredential = credential;
+  $("signup-intro").textContent = "Dernière étape : choisis ton pseudo. C'est lui que les autres joueurs verront.";
+  $("google-block").hidden = true;
+  $("guest-warning").hidden = true;
+  $("signup-submit").textContent = "Commencer";
+  $("signup-error").hidden = true;
+  $<HTMLDialogElement>("account").close();
+  if (!signup.open) signup.showModal();
+  $<HTMLInputElement>("pseudo").focus();
+}
+
+/** Appelé par Google après chaque connexion réussie, depuis l'inscription OU depuis "Lier Google". */
+async function onGoogleCredential(credential: string) {
+  const wasGuest = !!me && !me.hasGoogle;
+  try {
+    const res = await api.google(credential);
+    if (!applyAuth(res)) return askNameForGoogle(credential);
+    signup.close();
+    $<HTMLDialogElement>("account").close();
+    toast(wasGuest && me?.hasGoogle ? "Compte lié à Google ✓" : `Connecté : ${me?.name}`);
+  } catch (err) {
+    if (signup.open) showSignupError(err);
+    else toast(err instanceof ApiRequestError ? err.message : "Connexion impossible, réessaie.");
+  }
+}
+
 $("signup-form").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const error = $("signup-error");
-  error.hidden = true;
+  $("signup-error").hidden = true;
+  const name = $<HTMLInputElement>("pseudo").value.trim();
   try {
-    setMe(await api.createPlayer($<HTMLInputElement>("pseudo").value.trim()));
-    $<HTMLDialogElement>("signup").close();
+    const res = pendingCredential ? await api.google(pendingCredential, name) : await api.createGuest(name);
+    if (applyAuth(res)) {
+      pendingCredential = null;
+      signup.close();
+    }
   } catch (err) {
-    error.textContent = err instanceof ApiRequestError ? err.message : "Connexion impossible, réessaie.";
-    error.hidden = false;
+    // Le jeton Google expire au bout d'une heure : on repropose le bouton.
+    if (pendingCredential && err instanceof ApiRequestError && err.status === 401) resetSignup();
+    showSignupError(err);
   }
 });
+
+function resetSignup() {
+  pendingCredential = null;
+  $("signup-intro").textContent =
+    "Achète des cases sur la vraie carte, construis en hauteur, deviens le plus riche de l'Île-de-France.";
+  $("google-block").hidden = !googleEnabled;
+  $("guest-warning").hidden = false;
+  $("signup-submit").textContent = "Jouer en invité";
+}
+
+function openSignup() {
+  resetSignup();
+  signup.showModal();
+  if (googleEnabled) void renderGoogleButton($("google-signin"));
+}
+
 // Pas de fermeture avec Échap tant qu'on n'a pas de joueur.
-$("signup").addEventListener("cancel", (e) => {
+signup.addEventListener("cancel", (e) => {
   if (!me) e.preventDefault();
+});
+
+// ---------- Compte ----------
+$("open-account").addEventListener("click", () => {
+  if (!me) return;
+  $("account-title").textContent = me.name;
+  $("account-guest").hidden = me.hasGoogle;
+  $("account-google").hidden = !me.hasGoogle;
+  $("google-unavailable").hidden = googleEnabled;
+  $<HTMLDialogElement>("account").showModal();
+  if (!me.hasGoogle && googleEnabled) void renderGoogleButton($("google-link"));
+});
+$("close-account").addEventListener("click", () => $<HTMLDialogElement>("account").close());
+
+$("logout").addEventListener("click", async () => {
+  await api.logout();
+  await forgetGoogleChoice();
+  location.reload();
 });
 
 // ---------- Utilitaires ----------
@@ -359,15 +449,24 @@ function escapeHtml(s: string): string {
 
 // ---------- Démarrage ----------
 async function start() {
+  const config = await api.config().catch(() => ({ googleClientId: null }));
+  if (config.googleClientId) {
+    googleEnabled = true;
+    initGoogle(config.googleClientId, (credential) => void onGoogleCredential(credential)).catch((err) => {
+      console.error(err);
+      googleEnabled = false;
+      $("google-block").hidden = true;
+    });
+  }
   if (getToken()) {
     try {
       setMe(await api.me());
       return;
     } catch {
-      /* jeton invalide : on repasse par l'inscription */
+      /* session inconnue : on repasse par l'inscription */
     }
   }
-  $<HTMLDialogElement>("signup").showModal();
+  openSignup();
 }
 void start();
 

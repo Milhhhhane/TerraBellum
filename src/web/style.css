@@ -365,3 +365,84 @@ dialog .primary {
     border-radius: var(--radius) var(--radius) 0 0;
   }
 }
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+/* ---------- Compte et connexion ---------- */
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 160px;
+}
+
+.account-btn #account-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: #e8a86b;
+}
+
+.google-slot {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+  margin: 16px 0 4px;
+}
+
+.center {
+  text-align: center;
+}
+
+.wide {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+@media (max-width: 640px) {
+  .account-btn {
+    max-width: 92px;
+  }
+
+  .btn-label {
+    display: none;
+  }
+
+  .topbar .stats {
+    gap: 10px;
+  }
+}
