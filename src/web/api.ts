@@ -1,4 +1,14 @@
-import type { ApiError, AuthResponse, CellsResponse, ConfigResponse, LeaderboardEntry, MeResponse } from "../shared/api";
+import type {
+  AdminLogEntry,
+  AdminPlayer,
+  AdminStats,
+  ApiError,
+  AuthResponse,
+  CellsResponse,
+  ConfigResponse,
+  LeaderboardEntry,
+  MeResponse,
+} from "../shared/api";
 
 const TOKEN_KEY = "terrabellum.token";
 
@@ -69,4 +79,16 @@ export const api = {
   buy: (h3: string) => call<MeResponse>("POST", `/cells/${h3}/buy`),
   upgrade: (h3: string) => call<MeResponse>("POST", `/cells/${h3}/upgrade`),
   leaderboard: () => call<LeaderboardEntry[]>("GET", "/leaderboard"),
+};
+
+export const adminApi = {
+  stats: () => call<AdminStats>("GET", "/admin/stats"),
+  players: (q: string, sort: "worth" | "recent") =>
+    call<AdminPlayer[]>("GET", `/admin/players?q=${encodeURIComponent(q)}&sort=${sort}`),
+  coins: (id: string, delta: number) => call<{ ok: true }>("POST", `/admin/players/${id}/coins`, { delta }),
+  rename: (id: string, name: string) => call<{ ok: true }>("POST", `/admin/players/${id}/rename`, { name }),
+  ban: (id: string, reason: string) => call<{ ok: true }>("POST", `/admin/players/${id}/ban`, { reason }),
+  unban: (id: string) => call<{ ok: true }>("POST", `/admin/players/${id}/unban`),
+  remove: (id: string) => call<{ ok: true }>("DELETE", `/admin/players/${id}`),
+  log: () => call<AdminLogEntry[]>("GET", "/admin/log"),
 };

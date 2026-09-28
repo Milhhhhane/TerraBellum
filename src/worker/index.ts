@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { cellToLatLng, getResolution, gridDisk, isValidCell } from "h3-js";
 import {
   DEFAULT_WORLD,
@@ -12,35 +12,15 @@ import {
   upgradeCost,
 } from "../shared/economy";
 import type { AuthResponse, CellView, CellsResponse, ConfigResponse, LeaderboardEntry, MeResponse } from "../shared/api";
-import { NAME_PATTERN, bearerToken, hashToken, newToken } from "./auth";
+import { bearerToken, hashToken, newToken } from "./auth";
 import { SETTLE_SQL, ensureSchema, type PlayerRow } from "./db";
 import { verifyGoogleCredential } from "./google";
-
-type Env = {
-  Bindings: {
-    DB: D1Database;
-    ASSETS: Fetcher;
-    /** Client ID OAuth Google (public). Vide = connexion Google désactivée. */
-    GOOGLE_CLIENT_ID?: string;
-    /** Tests locaux uniquement : adresse de fausses clés publiques "Google". */
-    GOOGLE_JWKS_URL?: string;
-  };
-  Variables: { player: PlayerRow };
-};
-type Ctx = Context<Env>;
+import { HttpError, checkName, findPlayer, isUniqueViolation, type Ctx, type Env } from "./common";
+import { adminRoutes } from "./admin";
 
 const app = new Hono<Env>().basePath("/api");
 const WORLD = DEFAULT_WORLD;
 const MAX_CELLS_PER_QUERY = 3000;
-
-class HttpError extends Error {
-  constructor(
-    public status: 400 | 401 | 402 | 403 | 404 | 409,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 app.onError((err, c) => {
   if (err instanceof HttpError) return c.json({ error: err.message }, err.status);
@@ -54,19 +34,6 @@ app.use("*", async (c, next) => {
   await next();
 });
 
-async function findPlayer(c: Ctx): Promise<PlayerRow | null> {
-  const token = bearerToken(c.req.header("Authorization"));
-  if (!token) return null;
-  const hash = await hashToken(token);
-  return c.env.DB.prepare(
-    `SELECT p.id, p.name, p.coins, p.stock, p.stock_at, p.rate, p.google_sub
-     FROM sessions s JOIN players p ON p.id = s.player_id
-     WHERE s.token_hash = ?`,
-  )
-    .bind(hash)
-    .first<PlayerRow>();
-}
-
 /** Ouvre une session (un appareil) pour ce joueur et renvoie le jeton secret. */
 async function openSession(db: D1Database, playerId: string): Promise<string> {
   const token = newToken();
@@ -75,14 +42,6 @@ async function openSession(db: D1Database, playerId: string): Promise<string> {
     .bind(await hashToken(token), playerId, Date.now())
     .run();
   return token;
-}
-
-function checkName(raw: unknown): string {
-  const name = typeof raw === "string" ? raw.trim() : "";
-  if (!NAME_PATTERN.test(name)) {
-    throw new HttpError(400, "Pseudo invalide : 3 à 20 caractères, lettres, chiffres, _ ou -");
-  }
-  return name;
 }
 
 /** Crée un joueur (invité si googleSub est null) et sa première session. */
@@ -112,16 +71,18 @@ async function createPlayer(db: D1Database, name: string, googleSub: string | nu
   return { token, me: await meFor(db, id) };
 }
 
+/** Joueur connecté ET autorisé à jouer (pas suspendu). */
 async function requirePlayer(c: Ctx): Promise<PlayerRow> {
   const player = await findPlayer(c);
   if (!player) throw new HttpError(401, "Session inconnue : crée un joueur d'abord");
+  if (player.banned_at !== null) throw new HttpError(403, "Ton compte est suspendu");
   return player;
 }
 
 async function meFor(db: D1Database, playerId: string): Promise<MeResponse> {
   const row = await db
     .prepare(
-      `SELECT p.id, p.name, p.coins, p.stock, p.stock_at, p.rate, p.google_sub,
+      `SELECT p.id, p.name, p.coins, p.stock, p.stock_at, p.rate, p.google_sub, p.is_admin, p.banned_at,
               (SELECT COUNT(*) FROM cells c WHERE c.world = ?2 AND c.owner_id = p.id) AS owned
        FROM players p WHERE p.id = ?1`,
     )
@@ -137,6 +98,9 @@ async function meFor(db: D1Database, playerId: string): Promise<MeResponse> {
     rate: row.rate,
     ownedCells: row.owned,
     hasGoogle: row.google_sub !== null,
+    // Un admin doit être lié à Google (voir src/worker/admin.ts).
+    isAdmin: row.is_admin === 1 && row.google_sub !== null,
+    banned: row.banned_at !== null,
     serverNow: Date.now(),
   };
 }
@@ -145,10 +109,6 @@ function parseCell(raw: string): string {
   if (!isValidCell(raw) || getResolution(raw) !== H3_RES) throw new HttpError(400, "Case invalide");
   if (!isInOpenZone(raw)) throw new HttpError(403, "Cette zone n'est pas encore ouverte");
   return raw;
-}
-
-function isUniqueViolation(err: unknown): boolean {
-  return err instanceof Error && /UNIQUE constraint failed/i.test(err.message);
 }
 
 app.get("/health", (c) => c.json({ ok: true }));
@@ -211,7 +171,9 @@ app.post("/logout", async (c) => {
 });
 
 app.get("/me", async (c) => {
-  const player = await requirePlayer(c);
+  // Pas requirePlayer : un joueur suspendu doit pouvoir voir qu'il est suspendu.
+  const player = await findPlayer(c);
+  if (!player) throw new HttpError(401, "Session inconnue : crée un joueur d'abord");
   return c.json(await meFor(c.env.DB, player.id));
 });
 
@@ -367,6 +329,7 @@ app.get("/leaderboard", async (c) => {
             p.coins + COALESCE(SUM(c.invested), 0) AS worth,
             COUNT(c.h3) AS cells
      FROM players p LEFT JOIN cells c ON c.owner_id = p.id AND c.world = ?
+     WHERE p.banned_at IS NULL
      GROUP BY p.id
      ORDER BY worth DESC
      LIMIT 20`,
@@ -375,6 +338,8 @@ app.get("/leaderboard", async (c) => {
     .all<LeaderboardEntry>();
   return c.json(results);
 });
+
+app.route("/admin", adminRoutes);
 
 app.notFound((c) => c.json({ error: "Route inconnue" }, 404));
 

@@ -180,6 +180,11 @@ function updateHint() {
   const zoomedOut = map.getZoom() < GRID_MIN_ZOOM;
   const noHomeYet = !!me && me.ownedCells === 0;
   const hint = $("hint");
+  if (me?.banned) {
+    hint.hidden = false;
+    hint.textContent = "Ton compte est suspendu : tu peux regarder la carte, mais plus jouer.";
+    return;
+  }
   hint.hidden = !(zoomedOut || noHomeYet);
   hint.textContent = zoomedOut
     ? "Zoome pour voir les cases."
@@ -421,6 +426,7 @@ $("open-account").addEventListener("click", () => {
   $("account-title").textContent = me.name;
   $("account-guest").hidden = me.hasGoogle;
   $("account-google").hidden = !me.hasGoogle;
+  $("admin-link").hidden = !me.isAdmin;
   $("google-unavailable").hidden = googleEnabled;
   $<HTMLDialogElement>("account").showModal();
   if (!me.hasGoogle && googleEnabled) void renderGoogleButton($("google-link"));

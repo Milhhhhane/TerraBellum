@@ -446,3 +446,292 @@ dialog .primary {
     gap: 10px;
   }
 }
+
+/* ---------- Page d'administration ---------- */
+body.admin {
+  overflow-y: auto;
+}
+
+.tag {
+  margin-left: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(217, 164, 65, 0.15);
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.back {
+  margin-left: auto;
+  text-decoration: none;
+}
+
+.admin-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 80px 16px 40px;
+}
+
+.notice {
+  max-width: 420px;
+  margin: 60px auto;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  text-align: center;
+}
+
+.link-btn {
+  display: block;
+  margin-top: 16px;
+  text-decoration: none;
+  text-align: center;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+}
+
+.stat-card strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tab {
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.tab.active {
+  border-bottom-color: var(--gold);
+  color: var(--text);
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.toolbar input,
+.toolbar select,
+.admin-form input {
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--text);
+  font: inherit;
+}
+
+.toolbar input {
+  flex: 1;
+  min-width: 0;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.pname {
+  margin-right: 8px;
+  font-weight: 600;
+}
+
+tr.is-banned .pname {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.badge {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(47, 111, 219, 0.18);
+  color: #8fb4f5;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.badge.muted {
+  background: var(--line);
+  color: var(--muted);
+}
+
+.badge.gold {
+  background: rgba(217, 164, 65, 0.18);
+  color: var(--gold);
+}
+
+.badge.red {
+  background: rgba(194, 70, 61, 0.2);
+  color: #f08a80;
+}
+
+.small-btn {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.empty {
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.log li {
+  display: flex;
+  gap: 16px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.log li:last-child {
+  border-bottom: 0;
+}
+
+.log-date {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted-text {
+  color: var(--muted);
+}
+
+.red-text {
+  color: #f08a80;
+}
+
+.admin-form {
+  margin-top: 18px;
+}
+
+.admin-form label {
+  margin-top: 0;
+}
+
+.admin-form .row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.admin-form .row input {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+}
+
+.danger {
+  border-color: rgba(194, 70, 61, 0.6);
+  color: #f08a80;
+}
+
+.danger:hover {
+  background: rgba(194, 70, 61, 0.12);
+}
+
+#manage {
+  width: min(480px, calc(100% - 32px));
+}
+
+@media (max-width: 640px) {
+  .log li {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  th.opt,
+  td.opt {
+    display: none;
+  }
+
+  th,
+  td {
+    padding: 10px 8px;
+  }
+
+  td:first-child {
+    white-space: normal;
+  }
+
+  .pname {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .tag {
+    display: none;
+  }
+}

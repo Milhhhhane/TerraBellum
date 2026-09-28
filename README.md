@@ -90,6 +90,18 @@ Jeu en ligne : https://terrabellum.cmilhane.workers.dev
 
 Le Worker applique lui-même les migrations au premier appel (`src/worker/db.ts`) : chaque migration est numérotée, la table `schema_meta` retient la dernière appliquée, et chaque migration est une transaction. Pour faire évoluer le schéma, **ajouter** une migration à la fin de la liste, ne jamais modifier une migration déjà déployée.
 
+### Administration
+
+Page `/admin` (lien dans le menu Compte pour les admins) : chiffres clés, recherche de joueurs, donner/retirer des pièces, renommer, suspendre/réactiver, supprimer. Chaque action est inscrite dans la table `admin_log` (onglet Journal).
+
+Accès : compte **lié à Google** et marqué `is_admin = 1`. Pour nommer un admin, dans la console D1 :
+
+```sql
+UPDATE players SET is_admin = 1 WHERE name = 'Pseudo';
+```
+
+Un joueur suspendu peut se connecter et voir la carte, mais ne peut plus jouer et disparaît du classement.
+
 ### Connexion Google
 
 Le client ID OAuth (public) est dans `vars.GOOGLE_CLIENT_ID` de `wrangler.jsonc`. S'il est vide, le bouton Google est masqué et seuls les comptes invités sont disponibles. Aucun secret n'est nécessaire.

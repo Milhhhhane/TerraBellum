@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#14171c" />
+    <meta name="robots" content="noindex" />
+    <title>TerraBellum · Admin</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,4 90,27 90,73 50,96 10,73 10,27' fill='%23d9a441'/></svg>" />
+  </head>
+  <body class="admin">
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 100 100" aria-hidden="true">
+          <polygon points="50,4 90,27 90,73 50,96 10,73 10,27" />
+        </svg>
+        <span>TerraBellum</span>
+        <span class="tag">Admin</span>
+      </div>
+      <a class="ghost back" href="/">← Retour au jeu</a>
+    </header>
+
+    <main class="admin-main">
+      <section id="denied" class="notice" hidden>
+        <h1>Accès réservé</h1>
+        <p id="denied-reason"></p>
+        <a class="primary link-btn" href="/">Aller au jeu</a>
+      </section>
+
+      <div id="content" hidden>
+        <section class="stats-grid" id="stats" aria-label="Chiffres clés"></section>
+
+        <nav class="tabs" role="tablist">
+          <button type="button" role="tab" class="tab active" data-tab="players" aria-selected="true">Joueurs</button>
+          <button type="button" role="tab" class="tab" data-tab="log" aria-selected="false">Journal</button>
+        </nav>
+
+        <section id="tab-players">
+          <div class="toolbar">
+            <input id="search" type="search" placeholder="Rechercher un pseudo…" autocomplete="off" />
+            <select id="sort" aria-label="Trier">
+              <option value="worth">Les plus riches</option>
+              <option value="recent">Actifs récemment</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Joueur</th>
+                  <th class="num">Pièces</th>
+                  <th class="num">Cases</th>
+                  <th class="num opt">Patrimoine</th>
+                  <th class="opt">Dernière activité</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="players"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="tab-log" hidden>
+          <ul class="log" id="log"></ul>
+        </section>
+      </div>
+    </main>
+
+    <dialog id="manage">
+      <div class="dialog-head">
+        <h2 id="manage-title"></h2>
+        <button class="close" id="close-manage" type="button" aria-label="Fermer">×</button>
+      </div>
+      <p class="small" id="manage-info"></p>
+
+      <form class="admin-form" id="form-coins">
+        <label for="coins-amount">Pièces</label>
+        <div class="row">
+          <input id="coins-amount" type="number" min="1" step="1" placeholder="Montant" required />
+          <button type="submit" class="ghost" data-sign="1">Donner</button>
+          <button type="submit" class="ghost" data-sign="-1">Retirer</button>
+        </div>
+      </form>
+
+      <form class="admin-form" id="form-rename">
+        <label for="rename-input">Renommer</label>
+        <div class="row">
+          <input id="rename-input" minlength="3" maxlength="20" pattern="[A-Za-z0-9_\-]{3,20}" required />
+          <button type="submit" class="ghost">Renommer</button>
+        </div>
+      </form>
+
+      <form class="admin-form" id="form-ban">
+        <label for="ban-reason" id="ban-label">Suspendre</label>
+        <div class="row">
+          <input id="ban-reason" maxlength="200" placeholder="Raison (optionnel)" />
+          <button type="submit" class="ghost danger" id="ban-button">Suspendre</button>
+        </div>
+      </form>
+
+      <form class="admin-form" id="form-delete">
+        <label for="delete-confirm">Supprimer définitivement</label>
+        <p class="small">Le joueur, ses sessions et ses cases sont effacés. Tape son pseudo pour confirmer.</p>
+        <div class="row">
+          <input id="delete-confirm" autocomplete="off" />
+          <button type="submit" class="ghost danger">Supprimer</button>
+        </div>
+      </form>
+
+      <p class="error" id="manage-error" hidden></p>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <script type="module" src="./admin.ts"></script>
+  </body>
+</html>

@@ -12,6 +12,10 @@ export interface MeResponse {
   ownedCells: number;
   /** Le compte est-il lié à Google (récupérable sur n'importe quel appareil) ? */
   hasGoogle: boolean;
+  /** Accès à la page d'administration. */
+  isAdmin: boolean;
+  /** Compte suspendu : il peut se connecter mais plus jouer. */
+  banned: boolean;
   /** Heure du serveur, pour corriger le décalage d'horloge du client. */
   serverNow: number;
 }
@@ -51,3 +55,37 @@ export interface ConfigResponse {
  * - needsName : nouveau joueur Google, il doit choisir un pseudo
  */
 export type AuthResponse = { token: string | null; me: MeResponse } | { needsName: true };
+
+// ---------- Administration ----------
+
+export interface AdminStats {
+  players: number;
+  playersGoogle: number;
+  activeLast24h: number;
+  banned: number;
+  cells: number;
+  totalCoins: number;
+}
+
+export interface AdminPlayer {
+  id: string;
+  name: string;
+  coins: number;
+  rate: number;
+  cells: number;
+  worth: number;
+  hasGoogle: boolean;
+  isAdmin: boolean;
+  bannedAt: number | null;
+  banReason: string | null;
+  createdAt: number;
+  lastSeen: number;
+}
+
+export interface AdminLogEntry {
+  at: number;
+  adminName: string;
+  action: string;
+  targetName: string | null;
+  details: string | null;
+}

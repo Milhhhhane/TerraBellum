@@ -70,6 +70,27 @@ const MIGRATIONS: Migration[] = [
       `CREATE UNIQUE INDEX players_by_google_sub ON players (google_sub) WHERE google_sub IS NOT NULL`,
     ],
   },
+  {
+    version: 3,
+    description: "Administration : rôle admin, suspension et journal des actions",
+    statements: [
+      // Donné à la main dans la base (voir README). Un admin doit aussi être lié à Google.
+      `ALTER TABLE players ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE players ADD COLUMN banned_at INTEGER`,
+      `ALTER TABLE players ADD COLUMN ban_reason TEXT`,
+      `CREATE TABLE admin_log (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        at          INTEGER NOT NULL,
+        admin_id    TEXT NOT NULL,
+        admin_name  TEXT NOT NULL,
+        action      TEXT NOT NULL,
+        target_id   TEXT,
+        target_name TEXT,
+        details     TEXT
+      )`,
+      `CREATE INDEX admin_log_by_date ON admin_log (at DESC)`,
+    ],
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
@@ -139,4 +160,6 @@ export interface PlayerRow {
   stock_at: number;
   rate: number;
   google_sub: string | null;
+  is_admin: number;
+  banned_at: number | null;
 }
